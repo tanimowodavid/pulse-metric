@@ -1,57 +1,37 @@
 erDiagram
-    SaaS_Platform ||--o{ API_Key : "obtains"
-    SaaS_Platform ||--o{ Event : "sends"
 
-    API_Key {
+    USER {
         string id PK
-        string saas_id FK
+        string email
+        string company_name
+        string password_hash
         datetime created_at
-        datetime last_used_at
     }
 
-    Event {
+    PROJECT {
         string id PK
-        string saas_id FK
-        string event_type
-        json payload
+        string user_id FK
+        string name
+        string description
+        datetime created_at
+    }
+
+    API_KEY {
+        string id PK
+        string project_id FK
+        string key
+        string environment  // dev | staging | prod
+        datetime created_at
+    }
+
+    EVENT {
+        string id PK
+        string project_id FK
+        string event_type  // feature | subscription
+        json metadata
         datetime timestamp
     }
 
-    Subscription_Event ||--|| Event : "is a type of"
-    Subscription_Event {
-        string event_id PK
-        string user_id
-        string plan
-        string action
-        datetime effective_date
-    }
-
-    Feature_Event ||--|| Event : "is a type of"
-    Feature_Event {
-        string event_id PK
-        string user_id
-        string feature_name
-        json metadata
-    }
-
-    SaaS_Platform ||--o{ Subscription_Snapshot : "aggregates"
-
-    Subscription_Snapshot {
-        string id PK
-        string saas_id FK
-        int total_active
-        int total_canceled
-        int new_subscribers
-        datetime generated_at
-    }
-
-    SaaS_Platform ||--o{ Feature_Insight : "aggregates"
-
-    Feature_Insight {
-        string id PK
-        string saas_id FK
-        string feature_name
-        int total_usage
-        int unique_users
-        datetime generated_at
-    }
+    USER ||--o{ PROJECT : "owns"
+    PROJECT ||--o{ API_KEY : "has"
+    PROJECT ||--o{ EVENT : "receives"
