@@ -20,18 +20,19 @@ erDiagram
         string id PK
         string project_id FK
         string key
-        string environment  // dev | staging | prod
+        string environment "dev | prod"
         datetime created_at
     }
 
     EVENT {
         string id PK
         string project_id FK
-        string event_type  // feature | subscription
+        string event_type "feature | subscription"
+        string environment "dev | prod"
         json metadata
         datetime timestamp
     }
 
-    USER ||--o{ PROJECT : "owns"
-    PROJECT ||--o{ API_KEY : "has"
-    PROJECT ||--o{ EVENT : "receives"
+    USER ||--o{ PROJECT : owns
+    PROJECT ||--o{ API_KEY : has
+    PROJECT ||--o{ EVENT : receives
