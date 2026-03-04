@@ -1,194 +1,206 @@
-# SaaS Analytics Platform Architecture
+# Pulse Metric Architecture
 
-This document describes the full technical architecture for the **SaaS Usage & Subscription Analytics Platform**. It is designed to be GitHub‑ready, simple to understand, and professional enough for your portfolio.
 
----
+## 🎯 Goal
 
-## 1. High‑Level Overview
+A lightweight, production‑inspired analytics backend that helps SaaS companies track:
 
-The system ingests analytics events from external SaaS applications, validates them, stores raw events, processes them asynchronously, computes metrics, and exposes aggregated insights through dashboard APIs.
-
-**Core components:**
-
-* **Event Ingestion API** – Receives events from client apps.
-* **Authentication Layer** – Validates project API keys.
-* **Raw Events Store** – Stores all incoming events.
-* **Message Queue** – Decouples ingestion from processing.
-* **Background Workers** – Process events into aggregated metrics.
-* **Computed Metrics Store** – Optimized for analytics queries.
-* **Dashboard API** – Serves metrics to frontend dashboard.
+* **Feature usage** (any feature they define)
+* **Subscription metrics** (active subscriptions, churn, upgrades, downgrades)
 
 ---
-
-## 2. Flow Diagram (Text Representation)
+  
+# 🧱 High-Level Architecture
 
 ```
-Client → API Gateway → Validator → Raw Events → Queue
-                                        ↓
-                                Background Workers
-                                        ↓
-                                Metrics Tables
-                                        ↓
-                                 Dashboard API
+                   +----------------------+
+                   |   Client SaaS App    |
+                   +----------+-----------+
+                              |
+                              | HTTPS
+                              v
+       +------------------------------------------------+
+       |                API Gateway / Ingest            |
+       | - Auth via API Key                             |
+       | - Validate incoming event payload              |
+       | - Fast response (202 Accepted)                 |
+       +----------------------+-------------------------+
+                              |
+                              | Publish event
+                              v
+                 +---------------------------+
+                 |     Event Queue (Redis)   |
+                 +-------------+-------------+
+                               |
+                               | Consume
+                               v
+                +----------------------------+
+                |      Worker Service        |
+                | - Parse event              |
+                | - Normalize + store        |
+                | - Aggregate metrics        |
+                +--------------+-------------+
+                               |
+                               v
+          +------------------------------------------------+
+          |             Database (PostgreSQL)              |
+          |  event_logs     subscription_events   metrics  |
+          +------------------------------------------------+
+
+                              |
+                              | Query
+                              v
+                    +-------------------------+
+                    |     Metrics API         |
+                    |  (Dashboard Backend)    |
+                    +-----------+-------------+
+                                |
+                                v
+                            Frontend
 ```
 
 ---
 
-## 3. Component Breakdown
+# 📦 Components Breakdown
 
-### **3.1 Event Ingestion API**
+## 1. Ingest API (FastAPI)
 
-* Exposes a `/track` endpoint for incoming events.
-* Accepts event types:
+Handles all incoming events from SaaS applications.
 
-  * Feature usage events
-  * Subscription lifecycle events
-  * User activity events
-* Requests include project API keys.
-* Returns a success response immediately to ensure low latency.
+Responsibilities:
 
-### **3.2 Authentication Layer**
+* Authenticate using API key
+* Validate event payloads
+* Route event types:
 
-* Every project receives an API key upon creation.
-* Incoming requests include the key in headers.
-* API key determines **tenant isolation**.
+  * `feature_used`
+  * `subscription_started`
+  * `subscription_changed`
+  * `subscription_canceled`
+* Push events to Redis queues
+* Return **202 Accepted** immediately
 
-### **3.3 Validation & Normalization**
-
-* Event schema is validated on ingestion.
-* Invalid events are dropped or flagged.
-* Timestamps normalized to UTC.
-* Missing optional fields handled gracefully.
-
-### **3.4 Raw Events Storage**
-
-* All validated events are stored in a `raw_events` table.
-* This acts as a **source of truth**.
-* Enables reprocessing if worker logic changes.
+Why? To keep writes super fast.
 
 ---
 
-## 4. Asynchronous Processing
+## 2. Event Queue (Redis Streams)
 
-### **4.1 Why a Queue?**
+The queue is the buffer between the ingest layer and the workers.
 
-* Prevents ingestion API from slowing down.
-* Allows scalable processing.
-* Supports retries on worker failure.
+Benefits:
 
-### **4.2 Background Workers**
+* Spikes in traffic won't overload workers
+* Retries are easy
+* Durable enough for a portfolio project
 
-Workers are separated by domain to keep logic clean:
+Event example stored in queue:
 
-#### **Feature Worker**
+```json
+{
+  "project_id": "proj_123",
+  "user_id": "u_55",    // optional for feature events
+  "type": "feature_used",
+  "feature": "export_to_pdf",
+  "timestamp": "2026-03-03T12:00:11Z"
+}
+```
 
-* Processes feature_viewed, feature_used, feature_completed
-* Updates:
+---
 
-  * Daily feature usage counts
-  * Unique users per feature
+## 3. Worker Service
 
-#### **Subscription Worker**
+A background service (separate FastAPI process or Celery worker) that:
 
-* Processes subscription_created, subscription_cancelled, plan_upgraded
-* Updates:
+### Workflows
+
+#### **A. Feature Usage Event**
+
+* Insert event log into `feature_usage_events`
+* Update aggregated metrics table:
+
+  * Increment daily count
+  * Increment weekly count
+  * Increment monthly count
+  * (optional) track unique users
+
+#### **B. Subscription Events**
+
+Simplified model:
+
+* No per-user full history
+* Only store timestamped subscription events
+
+Worker updates tables:
+
+* Insert into `subscription_events`
+* Recompute:
 
   * Active subscriptions
-  * Churn
-  * Trial-to-paid conversions
-
-#### **Activity Worker**
-
-* Processes user_logged_in, session_started
-* Computes:
-
-  * DAU / WAU
-  * Returning vs new users
-  * Session statistics
+  * Churn count
+  * New subscriptions
+  * Upgrades
+  * Downgrades
 
 ---
 
-## 5. Data Storage Model
+## 4. Database (PostgreSQL)
 
-### **5.1 Raw Layer**
+### Tables
 
-* `raw_events` table keeps everything.
-* Supports replay and reprocessing.
+#### `projects`
 
-### **5.2 Computed Layer**
+Projects that use your platform.
 
-Workers aggregate results into summary tables such as:
+#### `feature_usage_events`
 
-* `daily_active_users`
-* `feature_usage_daily`
-* `subscription_metrics_daily`
+Raw events.
 
-### **Why two layers?**
+#### `daily_feature_metrics`
 
-* Raw = durable, flexible.
-* Computed = fast queries for dashboards.
+Aggregated counts.
 
-This follows a **mini data‑warehouse pattern**.
+#### `subscription_events`
 
----
+Raw subscription events only.
 
-## 6. Dashboard API Layer
+#### `daily_subscription_metrics`
 
-The Dashboard API fetches aggregated metrics and powers charts.
+Aggregated subscription summaries (the primary thing dashboards use).
 
-Endpoints include:
-
-* `/dashboard/overview`
-* `/dashboard/features`
-* `/dashboard/subscriptions`
-
-Each endpoint pulls from **computed tables**, not raw events.
-
-This ensures:
-
-* Consistent performance
-* Fast responses
-* Clean separation of concerns
+This keeps queries fast and your system scalable.
 
 ---
 
-## 7. Scaling Considerations
 
-### **7.1 Horizontal Scaling**
+# 📊 Metrics Produced
 
-* API servers can scale independently.
-* Workers can scale per domain (feature, subscription, activity).
 
-### **7.2 Queue Durability**
+### **Feature Usage Metrics**
 
-* Queue ensures events are never lost.
-* Allows back-pressure handling under high traffic.
+* Daily active users (based on feature events)
+* Feature popularity list
+* Feature usage trends
+* Peak usage times
 
-### **7.3 Multi-Tenant Isolation**
+### **Subscription Metrics**
 
-* All tables include a `project_id` field.
-* Prevents cross-tenant data leakage.
+* Active subscriptions
+* New vs. canceled subscriptions
+* Upgrades / downgrades
+* Daily subscription changes
+* Basic churn rate
 
----
-
-## 8. Tech Stack (suggested)
-
-* **Backend Framework:** FastAPI
-* **Database:** PostgreSQL
-* **Queue:** Redis Streams or RabbitMQ
-* **Worker Engine:** Celery, RQ, or custom consumer loop
-* **Hosting:** Render, Railway, Fly.io, or Docker Compose
 
 ---
 
-## 9. Summary
+# 🚀 Deployment Model
 
-This architecture:
+### Minimal setup
 
-* Is production-grade but portfolio-friendly.
-* Demonstrates familiarity with real SaaS analytics.
-* Shows event-driven thinking and domain separation.
-* Provides a clean structure that recruiters will respect.
+* FastAPI (Ingest + Metrics API)
+* Redis (queue)
+* Python Worker (Celery / RQ / custom)
+* PostgreSQL (RDS / Railway / Supabase)
 
-This document should be placed in `/docs/architecture.md` in your GitHub repository.
 
