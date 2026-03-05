@@ -13,7 +13,7 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    project = relationship("Project", back_populates="owner")
+    projects = relationship("Project", back_populates="owner")
 
 
 class Project(Base):
