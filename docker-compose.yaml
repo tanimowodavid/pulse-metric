@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: pulse_db
+    restart: always
+    environment:
+      POSTGRES_USER: pulse_user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: pulse_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pulse_data:/var/lib/postgresql/data
+
+  web:
+    build: .
+    container_name: pulse_web
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+psycopg://pulse_user:password@db:5432/pulse_db
+    depends_on:
+      - db
+
+volumes:
+  pulse_data:
