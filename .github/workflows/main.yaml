@@ -1,0 +1,49 @@
+name: Pulse API CI
+
+# This tells our ci pipeline when to run (every time you push or open a PR)
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # We need a Database for our tests to run!
+    services:
+      db:
+        image: postgres:15
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: pulse_test
+        ports:
+          - 5432:5432
+        # This ensures the DB is healthy before the tests start
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Pytest
+        env:
+          # We tell the app to talk to the DB service we defined above
+          DATABASE_URL: postgresql+psycopg://user:password@localhost:5432/pulse_test
+        run: pytest
