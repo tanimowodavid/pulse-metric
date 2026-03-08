@@ -1,19 +1,26 @@
-from pydantic import BaseModel, EmailStr
-from datetime import datetime
-from uuid import UUID
+"""Pydantic schemas for user-related API payloads."""
 
-# Registration Data
+from datetime import datetime
+
+from pydantic import BaseModel, EmailStr
+
+
 class UserCreate(BaseModel):
+    """Incoming payload for user registration."""
+
     email: EmailStr
     company_name: str
     password: str
 
-# user info
+
 class UserOut(BaseModel):
+    """Shape of user data returned to API consumers."""
+
     id: str
     email: EmailStr
     company_name: str
     created_at: datetime
 
     class Config:
-        from_attribute = True  # Tells Pydantic to read data from SQLAlchemy objects
+        # Tells Pydantic to read data from SQLAlchemy objects via attribute access.
+        from_attribute = True

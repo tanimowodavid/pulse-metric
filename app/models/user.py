@@ -1,10 +1,15 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey
+"""SQLAlchemy models for users and projects (tenant hierarchy)."""
+
+from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from .base import Base
 
 
 class User(Base):
+    """Platform user who owns one or more projects."""
+
     __tablename__ = "users"
 
     id = Column(String, primary_key=True, index=True)
@@ -17,6 +22,8 @@ class User(Base):
 
 
 class Project(Base):
+    """Tracked SaaS application (or environment) belonging to a user."""
+
     __tablename__ = "projects"
 
     id = Column(String, primary_key=True, index=True)
@@ -24,4 +31,3 @@ class Project(Base):
     name = Column(String, nullable=False)
 
     owner = relationship("User", back_populates="projects")
-

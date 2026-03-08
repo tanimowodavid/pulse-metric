@@ -5,9 +5,9 @@ It helps teams understand **which features users actually use** and **how subscr
 
 This project is intentionally built to be:
 
-* **Professional** (clean architecture, queues, workers, metrics)
-* **Scalable‑looking** (event-driven ingestion + async processing)
-* **Easy to deploy** (Redis + FastAPI + PostgreSQL)
+- **Professional** (clean architecture, queues, workers, metrics)
+- **Scalable‑looking** (event-driven ingestion + async processing)
+- **Easy to deploy** (Redis + FastAPI + PostgreSQL)
 
 ---
 
@@ -15,20 +15,20 @@ This project is intentionally built to be:
 
 This analytics backend allows SaaS products to send events such as:
 
-* **Feature Usage Events** – whenever a user interacts with any feature.
-* **Subscription Events** – when a user starts, cancels, upgrades, or downgrades a subscription.
+- **Feature Usage Events** – whenever a user interacts with any feature.
+- **Subscription Events** – when a user starts, cancels, upgrades, or downgrades a subscription.
 
 The system ingests these events, processes them asynchronously via a worker, and aggregates metrics daily.
 
 Your client SaaS apps can then query metrics like:
 
-* Most-used features
-* Feature usage over time
-* Daily active users (feature‑based)
-* New subscriptions
-* Cancellations
-* Upgrades & downgrades
-* Net subscription growth
+- Most-used features
+- Feature usage over time
+- Daily active users (feature‑based)
+- New subscriptions
+- Cancellations
+- Upgrades & downgrades
+- Net subscription growth
 
 ---
 
@@ -42,19 +42,19 @@ The project uses a simple but production‑inspired architecture:
 
 ### Key Components
 
-* **FastAPI – Ingest API**
+- **FastAPI – Ingest API**  
   Receives events, validates them, and pushes them into Redis.
 
-* **Redis Streams – Event Queue**
+- **Redis Streams – Event Queue**  
   Buffers and stores events for async processing.
 
-* **Worker (Python)**
+- **Worker (Python)**  
   Consumes events, stores raw logs, and updates daily aggregated metrics.
 
-* **PostgreSQL**
+- **PostgreSQL**  
   Stores projects, event logs, and aggregated daily metrics.
 
-* **Metrics API**
+- **Metrics API**  
   Serves dashboard-friendly analytics.
 
 For a deeper breakdown, see: [➡️ docs/architecture.md](docs/architecture.md)
@@ -65,32 +65,66 @@ For a deeper breakdown, see: [➡️ docs/architecture.md](docs/architecture.md)
 
 ### **Feature Metrics**
 
-* Feature usage counts (daily/weekly/monthly)
-* Feature popularity ranking
-* Daily active users (based on feature usage)
-* Peak usage times
+- Feature usage counts (daily/weekly/monthly)
+- Feature popularity ranking
+- Daily active users (based on feature usage)
+- Peak usage times
 
 ### **Subscription Metrics**
 
-* New subscriptions
-* Cancellations
-* Upgrades
-* Downgrades
-* Active subscriptions
-* Daily subscription change summaries
-* Net subscription growth
-
+- New subscriptions
+- Cancellations
+- Upgrades
+- Downgrades
+- Active subscriptions
+- Daily subscription change summaries
+- Net subscription growth
 
 ---
 
 # 🔧 Tech Stack
 
-* **FastAPI** (APIs)
-* **Python** workers
-* **Redis Streams** (queue)
-* **PostgreSQL** (storage)
-* **Pydantic** (validation)
-* **Docker** (for deploying multi-service setup)
+- **FastAPI** (APIs)
+- **Python** workers
+- **Redis Streams** (queue)
+- **PostgreSQL** (storage)
+- **Pydantic** (validation)
+- **Docker** (for deploying multi-service setup)
+
+---
+
+# 🛠️ Getting Started (Local Development)
+
+## 1. Prerequisites
+
+- Python 3.11+
+- PostgreSQL instance (local or hosted)
+- Optional: Redis for event queue + worker
+
+## 2. Install dependencies
+
+From the project root:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+## 3. Configure environment
+
+Set at least:
+
+```bash
+export DATABASE_URL="postgresql+psycopg://user:password@localhost:5432/pulse_metric"
+export SECRET_KEY="replace-with-a-long-random-secret"
+```
+
+You can put these into a `.env` file and load them using `python-dotenv` if you prefer.
+
+---
+
+# ▶️ Running the API
 
 ---
 
@@ -167,20 +201,29 @@ python worker.py
 
 ---
 
+# ✅ Running Tests
+
+Pytest is configured to use a separate PostgreSQL database so local data is not touched.
+
+```bash
+pytest
+```
+
+The test database is created and torn down automatically via `app/tests/conftest.py`.
+
+---
 
 # 📬 Future Enhancements
 
-* JavaScript SDK for sending events
-* Rate limiting and quotas
-* Single-tenant / multi-tenant mode
-* Cohort analysis
-* Funnels
-* Trigger-based alerts (Slack/email)
+- JavaScript SDK for sending events
+- Rate limiting and quotas
+- Single-tenant / multi-tenant mode
+- Cohort analysis
+- Funnels
+- Trigger-based alerts (Slack/email)
 
 ---
 
 # 📄 License
 
 MIT License
-
-
