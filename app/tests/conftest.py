@@ -1,5 +1,5 @@
 """Pytest fixtures for API and database integration tests."""
-
+import os
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -11,7 +11,11 @@ from app.models.base import Base
 
 
 # Test database URL (separate from the main development database).
-TEST_DATABASE_URL = "postgresql+psycopg://user:password@db:5432/pulse_test"
+TEST_DATABASE_URL = os.getenv(
+    "TEST_DATABASE_URL", 
+    "postgresql+psycopg://user:password@localhost:5432/pulse_test"
+)
+
 
 engine = create_engine(TEST_DATABASE_URL)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
