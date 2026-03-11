@@ -6,7 +6,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.main import app
-from app.core.database import Base, get_db
+from app.core.database import get_db
+from app.models.base import Base
 
 
 # Test database URL (separate from the main development database).
